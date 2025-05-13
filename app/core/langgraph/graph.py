@@ -1,4 +1,4 @@
-"""This file contains the LangGraph Agent/workflow and interactions with the LLM."""
+"""这个文件包含了 LangGraph Agent/工作流以及与 LLM 的交互。"""
 
 from typing import (
     Any,
@@ -44,15 +44,15 @@ from app.utils import (
 
 
 class LangGraphAgent:
-    """Manages the LangGraph Agent/workflow and interactions with the LLM.
+    """管理 LangGraph Agent/工作流以及与 LLM 的交互。
 
-    This class handles the creation and management of the LangGraph workflow,
-    including LLM interactions, database connections, and response processing.
+    这个类负责创建和管理 LangGraph 工作流，
+    包括 LLM 交互、数据库连接和响应处理。
     """
 
     def __init__(self):
-        """Initialize the LangGraph Agent with necessary components."""
-        # Use environment-specific LLM model
+        """初始化 LangGraph Agent 及其必要组件。"""
+        # 使用环境特定的 LLM 模型
         self.llm = ChatOpenAI(
             model=settings.LLM_MODEL,
             temperature=settings.DEFAULT_LLM_TEMPERATURE,
@@ -67,18 +67,18 @@ class LangGraphAgent:
         logger.info("llm_initialized", model=settings.LLM_MODEL, environment=settings.ENVIRONMENT.value)
 
     def _get_model_kwargs(self) -> Dict[str, Any]:
-        """Get environment-specific model kwargs.
+        """获取环境特定的模型参数。
 
         Returns:
-            Dict[str, Any]: Additional model arguments based on environment
+            Dict[str, Any]: 基于环境的额外模型参数
         """
         model_kwargs = {}
 
-        # Development - we can use lower speeds for cost savings
+        # 开发环境 - 可以使用较低的速度以节省成本
         if settings.ENVIRONMENT == Environment.DEVELOPMENT:
             model_kwargs["top_p"] = 0.8
 
-        # Production - use higher quality settings
+        # 生产环境 - 使用更高质量的设置
         elif settings.ENVIRONMENT == Environment.PRODUCTION:
             model_kwargs["top_p"] = 0.95
             model_kwargs["presence_penalty"] = 0.1
@@ -87,14 +87,14 @@ class LangGraphAgent:
         return model_kwargs
 
     async def _get_connection_pool(self) -> AsyncConnectionPool:
-        """Get a PostgreSQL connection pool using environment-specific settings.
+        """获取使用环境特定设置的 PostgreSQL 连接池。
 
         Returns:
-            AsyncConnectionPool: A connection pool for PostgreSQL database.
+            AsyncConnectionPool: PostgreSQL 数据库的连接池。
         """
         if self._connection_pool is None:
             try:
-                # Configure pool size based on environment
+                # 根据环境配置连接池大小
                 max_size = settings.POSTGRES_POOL_SIZE
 
                 self._connection_pool = AsyncConnectionPool(
@@ -111,7 +111,7 @@ class LangGraphAgent:
                 logger.info("connection_pool_created", max_size=max_size, environment=settings.ENVIRONMENT.value)
             except Exception as e:
                 logger.error("connection_pool_creation_failed", error=str(e), environment=settings.ENVIRONMENT.value)
-                # In production, we might want to degrade gracefully
+                # 在生产环境中，我们可能需要优雅降级
                 if settings.ENVIRONMENT == Environment.PRODUCTION:
                     logger.warning("continuing_without_connection_pool", environment=settings.ENVIRONMENT.value)
                     return None
@@ -119,19 +119,19 @@ class LangGraphAgent:
         return self._connection_pool
 
     async def _chat(self, state: GraphState) -> dict:
-        """Process the chat state and generate a response.
+        """处理聊天状态并生成响应。
 
         Args:
-            state (GraphState): The current state of the conversation.
+            state (GraphState): 当前对话状态。
 
         Returns:
-            dict: Updated state with new messages.
+            dict: 包含新消息的更新状态。
         """
         messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT)
 
         llm_calls_num = 0
 
-        # Configure retry attempts based on environment
+        # 根据环境配置重试次数
         max_retries = settings.MAX_LLM_CALL_RETRIES
 
         for attempt in range(max_retries):
@@ -156,7 +156,7 @@ class LangGraphAgent:
                 )
                 llm_calls_num += 1
 
-                # In production, we might want to fall back to a more reliable model
+                # 在生产环境中，我们可能需要回退到更可靠的模型
                 if settings.ENVIRONMENT == Environment.PRODUCTION and attempt == max_retries - 2:
                     fallback_model = "gpt-4o"
                     logger.warning(
@@ -166,17 +166,16 @@ class LangGraphAgent:
 
                 continue
 
-        raise Exception(f"Failed to get a response from the LLM after {max_retries} attempts")
+        raise Exception(f"在 {max_retries} 次尝试后未能从 LLM 获取响应")
 
-    # Define our tool node
     async def _tool_call(self, state: GraphState) -> GraphState:
-        """Process tool calls from the last message.
+        """处理最后一条消息中的工具调用。
 
         Args:
-            state: The current agent state containing messages and tool calls.
+            state: 包含消息和工具调用的当前代理状态。
 
         Returns:
-            Dict with updated messages containing tool responses.
+            Dict: 包含工具响应的更新消息。
         """
         outputs = []
         for tool_call in state.messages[-1].tool_calls:
@@ -191,28 +190,28 @@ class LangGraphAgent:
         return {"messages": outputs}
 
     def _should_continue(self, state: GraphState) -> Literal["end", "continue"]:
-        """Determine if the agent should continue or end based on the last message.
+        """根据最后一条消息决定代理是否应该继续或结束。
 
         Args:
-            state: The current agent state containing messages.
+            state: 包含消息的当前代理状态。
 
         Returns:
-            Literal["end", "continue"]: "end" if there are no tool calls, "continue" otherwise.
+            Literal["end", "continue"]: 如果没有工具调用则返回 "end"，否则返回 "continue"。
         """
         messages = state.messages
         last_message = messages[-1]
-        # If there is no function call, then we finish
+        # 如果没有函数调用，则结束
         if not last_message.tool_calls:
             return "end"
-        # Otherwise if there is, we continue
+        # 否则继续
         else:
             return "continue"
 
     async def create_graph(self) -> Optional[CompiledStateGraph]:
-        """Create and configure the LangGraph workflow.
+        """创建和配置 LangGraph 工作流。
 
         Returns:
-            Optional[CompiledStateGraph]: The configured LangGraph instance or None if init fails
+            Optional[CompiledStateGraph]: 配置好的 LangGraph 实例，如果初始化失败则返回 None
         """
         if self._graph is None:
             try:
@@ -228,16 +227,16 @@ class LangGraphAgent:
                 graph_builder.set_entry_point("chat")
                 graph_builder.set_finish_point("chat")
 
-                # Get connection pool (may be None in production if DB unavailable)
+                # 获取连接池（在生产环境中如果数据库不可用可能为 None）
                 connection_pool = await self._get_connection_pool()
                 if connection_pool:
                     checkpointer = AsyncPostgresSaver(connection_pool)
                     await checkpointer.setup()
                 else:
-                    # In production, proceed without checkpointer if needed
+                    # 在生产环境中，如果需要可以继续运行而不使用检查点
                     checkpointer = None
                     if settings.ENVIRONMENT != Environment.PRODUCTION:
-                        raise Exception("Connection pool initialization failed")
+                        raise Exception("连接池初始化失败")
 
                 self._graph = graph_builder.compile(
                     checkpointer=checkpointer, name=f"{settings.PROJECT_NAME} Agent ({settings.ENVIRONMENT.value})"
@@ -251,7 +250,7 @@ class LangGraphAgent:
                 )
             except Exception as e:
                 logger.error("graph_creation_failed", error=str(e), environment=settings.ENVIRONMENT.value)
-                # In production, we don't want to crash the app
+                # 在生产环境中，我们不希望应用崩溃
                 if settings.ENVIRONMENT == Environment.PRODUCTION:
                     logger.warning("continuing_without_graph")
                     return None
@@ -265,15 +264,15 @@ class LangGraphAgent:
         session_id: str,
         user_id: Optional[str] = None,
     ) -> list[dict]:
-        """Get a response from the LLM.
+        """从 LLM 获取响应。
 
         Args:
-            messages (list[Message]): The messages to send to the LLM.
-            session_id (str): The session ID for Langfuse tracking.
-            user_id (Optional[str]): The user ID for Langfuse tracking.
+            messages (list[Message]): 要发送给 LLM 的消息。
+            session_id (str): 用于 Langfuse 跟踪的会话 ID。
+            user_id (Optional[str]): 用于 Langfuse 跟踪的用户 ID。
 
         Returns:
-            list[dict]: The response from the LLM.
+            list[dict]: LLM 的响应。
         """
         if self._graph is None:
             self._graph = await self.create_graph()
@@ -294,21 +293,21 @@ class LangGraphAgent:
             )
             return self.__process_messages(response["messages"])
         except Exception as e:
-            logger.error(f"Error getting response: {str(e)}")
+            logger.error(f"获取响应时出错: {str(e)}")
             raise e
 
     async def get_stream_response(
         self, messages: list[Message], session_id: str, user_id: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
-        """Get a stream response from the LLM.
+        """从 LLM 获取流式响应。
 
         Args:
-            messages (list[Message]): The messages to send to the LLM.
-            session_id (str): The session ID for the conversation.
-            user_id (Optional[str]): The user ID for the conversation.
+            messages (list[Message]): 要发送给 LLM 的消息。
+            session_id (str): 会话的会话 ID。
+            user_id (Optional[str]): 会话的用户 ID。
 
         Yields:
-            str: Tokens of the LLM response.
+            str: LLM 响应的令牌。
         """
         config = {
             "configurable": {"thread_id": session_id},
@@ -328,21 +327,21 @@ class LangGraphAgent:
                 try:
                     yield token.content
                 except Exception as token_error:
-                    logger.error("Error processing token", error=str(token_error), session_id=session_id)
-                    # Continue with next token even if current one fails
+                    logger.error("处理令牌时出错", error=str(token_error), session_id=session_id)
+                    # 即使当前令牌处理失败，也继续处理下一个
                     continue
         except Exception as stream_error:
-            logger.error("Error in stream processing", error=str(stream_error), session_id=session_id)
+            logger.error("流处理时出错", error=str(stream_error), session_id=session_id)
             raise stream_error
 
     async def get_chat_history(self, session_id: str) -> list[Message]:
-        """Get the chat history for a given thread ID.
+        """获取给定线程 ID 的聊天历史。
 
         Args:
-            session_id (str): The session ID for the conversation.
+            session_id (str): 会话的会话 ID。
 
         Returns:
-            list[Message]: The chat history.
+            list[Message]: 聊天历史。
         """
         if self._graph is None:
             self._graph = await self.create_graph()
@@ -353,8 +352,16 @@ class LangGraphAgent:
         return self.__process_messages(state.values["messages"]) if state.values else []
 
     def __process_messages(self, messages: list[BaseMessage]) -> list[Message]:
+        """处理消息列表，转换为 OpenAI 风格的消息格式。
+
+        Args:
+            messages (list[BaseMessage]): 要处理的消息列表。
+
+        Returns:
+            list[Message]: 处理后的消息列表，只包含助手和用户的消息。
+        """
         openai_style_messages = convert_to_openai_messages(messages)
-        # keep just assistant and user messages
+        # 只保留助手和用户的消息
         return [
             Message(**message)
             for message in openai_style_messages
@@ -362,28 +369,28 @@ class LangGraphAgent:
         ]
 
     async def clear_chat_history(self, session_id: str) -> None:
-        """Clear all chat history for a given thread ID.
+        """清除给定线程 ID 的所有聊天历史。
 
         Args:
-            session_id: The ID of the session to clear history for.
+            session_id: 要清除历史的会话 ID。
 
         Raises:
-            Exception: If there's an error clearing the chat history.
+            Exception: 如果清除聊天历史时出错。
         """
         try:
-            # Make sure the pool is initialized in the current event loop
+            # 确保在当前事件循环中初始化连接池
             conn_pool = await self._get_connection_pool()
 
-            # Use a new connection for this specific operation
+            # 为此特定操作使用新连接
             async with conn_pool.connection() as conn:
                 for table in settings.CHECKPOINT_TABLES:
                     try:
                         await conn.execute(f"DELETE FROM {table} WHERE thread_id = %s", (session_id,))
-                        logger.info(f"Cleared {table} for session {session_id}")
+                        logger.info(f"已清除会话 {session_id} 的 {table}")
                     except Exception as e:
-                        logger.error(f"Error clearing {table}", error=str(e))
+                        logger.error(f"清除 {table} 时出错", error=str(e))
                         raise
 
         except Exception as e:
-            logger.error("Failed to clear chat history", error=str(e))
+            logger.error("清除聊天历史失败", error=str(e))
             raise

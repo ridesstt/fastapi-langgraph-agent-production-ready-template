@@ -14,74 +14,74 @@ from pydantic import (
 
 
 class Message(BaseModel):
-    """Message model for chat endpoint.
+    """消息模型，用于聊天端点。
 
-    Attributes:
-        role: The role of the message sender (user or assistant).
-        content: The content of the message.
+    属性:
+        role: 消息发送者的角色（用户或助手）。
+        content: 消息内容。
     """
 
     model_config = {"extra": "ignore"}
 
-    role: Literal["user", "assistant", "system"] = Field(..., description="The role of the message sender")
-    content: str = Field(..., description="The content of the message", min_length=1, max_length=3000)
+    role: Literal["user", "assistant", "system"] = Field(..., description="消息发送者的角色")
+    content: str = Field(..., description="消息内容", min_length=1, max_length=3000)
 
     @field_validator("content")
     @classmethod
     def validate_content(cls, v: str) -> str:
-        """Validate the message content.
+        """验证消息内容。
 
-        Args:
-            v: The content to validate
+        参数:
+            v: 要验证的内容
 
-        Returns:
-            str: The validated content
+        返回:
+            str: 验证后的内容
 
-        Raises:
-            ValueError: If the content contains disallowed patterns
+        异常:
+            ValueError: 如果内容包含不允许的模式
         """
-        # Check for potentially harmful content
+        # 检查潜在有害内容
         if re.search(r"<script.*?>.*?</script>", v, re.IGNORECASE | re.DOTALL):
-            raise ValueError("Content contains potentially harmful script tags")
+            raise ValueError("内容包含潜在有害的脚本标签")
 
-        # Check for null bytes
+        # 检查空字节
         if "\0" in v:
-            raise ValueError("Content contains null bytes")
+            raise ValueError("内容包含空字节")
 
         return v
 
 
 class ChatRequest(BaseModel):
-    """Request model for chat endpoint.
+    """聊天请求模型。
 
-    Attributes:
-        messages: List of messages in the conversation.
+    属性:
+        messages: 对话中的消息列表。
     """
 
     messages: List[Message] = Field(
         ...,
-        description="List of messages in the conversation",
+        description="对话中的消息列表",
         min_length=1,
     )
 
 
 class ChatResponse(BaseModel):
-    """Response model for chat endpoint.
+    """聊天响应模型。
 
-    Attributes:
-        messages: List of messages in the conversation.
+    属性:
+        messages: 对话中的消息列表。
     """
 
-    messages: List[Message] = Field(..., description="List of messages in the conversation")
+    messages: List[Message] = Field(..., description="对话中的消息列表")
 
 
 class StreamResponse(BaseModel):
-    """Response model for streaming chat endpoint.
+    """流式聊天响应模型。
 
-    Attributes:
-        content: The content of the current chunk.
-        done: Whether the stream is complete.
+    属性:
+        content: 当前数据块的内容。
+        done: 流是否完成。
     """
 
-    content: str = Field(default="", description="The content of the current chunk")
-    done: bool = Field(default=False, description="Whether the stream is complete")
+    content: str = Field(default="", description="当前数据块的内容")
+    done: bool = Field(default=False, description="流是否完成")

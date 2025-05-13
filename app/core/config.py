@@ -1,8 +1,7 @@
-"""Application configuration management.
+"""应用程序配置管理模块。
 
-This module handles environment-specific configuration loading, parsing, and management
-for the application. It includes environment detection, .env file loading, and
-configuration value parsing.
+此模块处理应用程序的环境特定配置加载、解析和管理。
+包括环境检测、.env文件加载和配置值解析。
 """
 
 import json
@@ -20,12 +19,15 @@ from typing import (
 from dotenv import load_dotenv
 
 
-# Define environment types
+# 定义环境类型
 class Environment(str, Enum):
-    """Application environment types.
+    """应用程序环境类型。
 
-    Defines the possible environments the application can run in:
-    development, staging, production, and test.
+    定义应用程序可以运行的环境类型：
+    - development: 开发环境
+    - staging: 预发布环境
+    - production: 生产环境
+    - test: 测试环境
     """
 
     DEVELOPMENT = "development"
@@ -34,12 +36,12 @@ class Environment(str, Enum):
     TEST = "test"
 
 
-# Determine environment
+# 确定当前环境
 def get_environment() -> Environment:
-    """Get the current environment.
+    """获取当前环境。
 
     Returns:
-        Environment: The current environment (development, staging, production, or test)
+        Environment: 当前环境（development、staging、production 或 test）
     """
     match os.getenv("APP_ENV", "development").lower():
         case "production" | "prod":
@@ -118,73 +120,73 @@ def parse_dict_of_lists_from_env(prefix, default_dict=None):
 
 
 class Settings:
-    """Application settings without using pydantic."""
+    """应用程序设置类（不使用pydantic）。"""
 
     def __init__(self):
-        """Initialize application settings from environment variables.
+        """从环境变量初始化应用程序设置。
 
-        Loads and sets all configuration values from environment variables,
-        with appropriate defaults for each setting. Also applies
-        environment-specific overrides based on the current environment.
+        加载并设置所有来自环境变量的配置值，
+        为每个设置提供适当的默认值。
+        同时根据当前环境应用环境特定的覆盖设置。
         """
-        # Set the environment
+        # 设置环境
         self.ENVIRONMENT = get_environment()
 
-        # Application Settings
-        self.PROJECT_NAME = os.getenv("PROJECT_NAME", "FastAPI LangGraph Template")
-        self.VERSION = os.getenv("VERSION", "1.0.0")
-        self.DESCRIPTION = os.getenv(
+        # 应用程序基本设置
+        self.PROJECT_NAME = os.getenv("PROJECT_NAME", "FastAPI LangGraph Template")  # 项目名称
+        self.VERSION = os.getenv("VERSION", "1.0.0")  # 版本号
+        self.DESCRIPTION = os.getenv(  # 项目描述
             "DESCRIPTION", "A production-ready FastAPI template with LangGraph and Langfuse integration"
         )
-        self.API_V1_STR = os.getenv("API_V1_STR", "/api/v1")
-        self.DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t", "yes")
+        self.API_V1_STR = os.getenv("API_V1_STR", "/api/v1")  # API版本路径
+        self.DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t", "yes")  # 调试模式开关
 
-        # CORS Settings
-        self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])
+        # CORS（跨域资源共享）设置
+        self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])  # 允许的跨域来源
 
-        # Langfuse Configuration
-        self.LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
-        self.LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY", "")
-        self.LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        # Langfuse配置（用于LLM应用监控和分析）
+        self.LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")  # Langfuse公钥
+        self.LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY", "")  # Langfuse密钥
+        self.LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")  # Langfuse服务器地址
 
-        # LangGraph Configuration
-        self.LLM_API_KEY = os.getenv("LLM_API_KEY", "")
-        self.LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
-        self.DEFAULT_LLM_TEMPERATURE = float(os.getenv("DEFAULT_LLM_TEMPERATURE", "0.2"))
-        self.MAX_TOKENS = int(os.getenv("MAX_TOKENS", "2000"))
-        self.MAX_LLM_CALL_RETRIES = int(os.getenv("MAX_LLM_CALL_RETRIES", "3"))
+        # LangGraph配置（LLM应用框架）
+        self.LLM_API_KEY = os.getenv("LLM_API_KEY", "")  # LLM API密钥
+        self.LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")  # 使用的LLM模型
+        self.DEFAULT_LLM_TEMPERATURE = float(os.getenv("DEFAULT_LLM_TEMPERATURE", "0.2"))  # LLM温度参数
+        self.MAX_TOKENS = int(os.getenv("MAX_TOKENS", "2000"))  # 最大token数
+        self.MAX_LLM_CALL_RETRIES = int(os.getenv("MAX_LLM_CALL_RETRIES", "3"))  # LLM调用最大重试次数
 
-        # JWT Configuration
-        self.JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
-        self.JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-        self.JWT_ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_DAYS", "30"))
+        # JWT（JSON Web Token）配置
+        self.JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")  # JWT密钥
+        self.JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")  # JWT算法
+        self.JWT_ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_DAYS", "30"))  # JWT令牌过期天数
 
-        # Logging Configuration
-        self.LOG_DIR = Path(os.getenv("LOG_DIR", "logs"))
-        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-        self.LOG_FORMAT = os.getenv("LOG_FORMAT", "json")  # "json" or "console"
+        # 日志配置
+        self.LOG_DIR = Path(os.getenv("LOG_DIR", "logs"))  # 日志目录
+        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")  # 日志级别
+        self.LOG_FORMAT = os.getenv("LOG_FORMAT", "json")  # 日志格式（json或console）
 
-        # Postgres Configuration
-        self.POSTGRES_URL = os.getenv("POSTGRES_URL", "")
-        self.POSTGRES_POOL_SIZE = int(os.getenv("POSTGRES_POOL_SIZE", "20"))
-        self.POSTGRES_MAX_OVERFLOW = int(os.getenv("POSTGRES_MAX_OVERFLOW", "10"))
-        self.CHECKPOINT_TABLES = ["checkpoint_blobs", "checkpoint_writes", "checkpoints"]
+        # PostgreSQL数据库配置
+        self.POSTGRES_URL = os.getenv("POSTGRES_URL", "")  # 数据库连接URL
+        self.POSTGRES_POOL_SIZE = int(os.getenv("POSTGRES_POOL_SIZE", "20"))  # 连接池大小
+        self.POSTGRES_MAX_OVERFLOW = int(os.getenv("POSTGRES_MAX_OVERFLOW", "10"))  # 最大溢出连接数
+        self.CHECKPOINT_TABLES = ["checkpoint_blobs", "checkpoint_writes", "checkpoints"]  # 检查点相关表
 
-        # Rate Limiting Configuration
-        self.RATE_LIMIT_DEFAULT = parse_list_from_env("RATE_LIMIT_DEFAULT", ["200 per day", "50 per hour"])
+        # 速率限制配置
+        self.RATE_LIMIT_DEFAULT = parse_list_from_env("RATE_LIMIT_DEFAULT", ["200 per day", "50 per hour"])  # 默认速率限制
 
-        # Rate limit endpoints defaults
+        # 各端点的速率限制默认值
         default_endpoints = {
-            "chat": ["30 per minute"],
-            "chat_stream": ["20 per minute"],
-            "messages": ["50 per minute"],
-            "register": ["10 per hour"],
-            "login": ["20 per minute"],
-            "root": ["10 per minute"],
-            "health": ["20 per minute"],
+            "chat": ["30 per minute"],  # 聊天接口限制
+            "chat_stream": ["20 per minute"],  # 流式聊天接口限制
+            "messages": ["50 per minute"],  # 消息接口限制
+            "register": ["10 per hour"],  # 注册接口限制
+            "login": ["20 per minute"],  # 登录接口限制
+            "root": ["10 per minute"],  # 根接口限制
+            "health": ["20 per minute"],  # 健康检查接口限制
         }
 
-        # Update rate limit endpoints from environment variables
+        # 从环境变量更新速率限制端点配置
         self.RATE_LIMIT_ENDPOINTS = default_endpoints.copy()
         for endpoint in default_endpoints:
             env_key = f"RATE_LIMIT_{endpoint.upper()}"
@@ -192,52 +194,52 @@ class Settings:
             if value:
                 self.RATE_LIMIT_ENDPOINTS[endpoint] = value
 
-        # Evaluation Configuration
-        self.EVALUATION_LLM = os.getenv("EVALUATION_LLM", "gpt-4o-mini")
-        self.EVALUATION_BASE_URL = os.getenv("EVALUATION_BASE_URL", "https://api.openai.com/v1")
-        self.EVALUATION_API_KEY = os.getenv("EVALUATION_API_KEY", self.LLM_API_KEY)
-        self.EVALUATION_SLEEP_TIME = int(os.getenv("EVALUATION_SLEEP_TIME", "10"))
+        # 评估配置
+        self.EVALUATION_LLM = os.getenv("EVALUATION_LLM", "gpt-4o-mini")  # 评估使用的LLM模型
+        self.EVALUATION_BASE_URL = os.getenv("EVALUATION_BASE_URL", "https://api.openai.com/v1")  # 评估API基础URL
+        self.EVALUATION_API_KEY = os.getenv("EVALUATION_API_KEY", self.LLM_API_KEY)  # 评估API密钥
+        self.EVALUATION_SLEEP_TIME = int(os.getenv("EVALUATION_SLEEP_TIME", "10"))  # 评估间隔时间
 
-        # Apply environment-specific settings
+        # 应用环境特定设置
         self.apply_environment_settings()
 
     def apply_environment_settings(self):
-        """Apply environment-specific settings based on the current environment."""
+        """根据当前环境应用环境特定的设置。"""
         env_settings = {
-            Environment.DEVELOPMENT: {
+            Environment.DEVELOPMENT: {  # 开发环境设置
                 "DEBUG": True,
                 "LOG_LEVEL": "DEBUG",
                 "LOG_FORMAT": "console",
                 "RATE_LIMIT_DEFAULT": ["1000 per day", "200 per hour"],
             },
-            Environment.STAGING: {
+            Environment.STAGING: {  # 预发布环境设置
                 "DEBUG": False,
                 "LOG_LEVEL": "INFO",
                 "RATE_LIMIT_DEFAULT": ["500 per day", "100 per hour"],
             },
-            Environment.PRODUCTION: {
+            Environment.PRODUCTION: {  # 生产环境设置
                 "DEBUG": False,
                 "LOG_LEVEL": "WARNING",
                 "RATE_LIMIT_DEFAULT": ["200 per day", "50 per hour"],
             },
-            Environment.TEST: {
+            Environment.TEST: {  # 测试环境设置
                 "DEBUG": True,
                 "LOG_LEVEL": "DEBUG",
                 "LOG_FORMAT": "console",
-                "RATE_LIMIT_DEFAULT": ["1000 per day", "1000 per hour"],  # Relaxed for testing
+                "RATE_LIMIT_DEFAULT": ["1000 per day", "1000 per hour"],  # 测试环境放宽限制
             },
         }
 
-        # Get settings for current environment
+        # 获取当前环境的设置
         current_env_settings = env_settings.get(self.ENVIRONMENT, {})
 
-        # Apply settings if not explicitly set in environment variables
+        # 如果环境变量中没有明确设置，则应用默认设置
         for key, value in current_env_settings.items():
             env_var_name = key.upper()
-            # Only override if environment variable wasn't explicitly set
+            # 仅当环境变量未明确设置时才覆盖
             if env_var_name not in os.environ:
                 setattr(self, key, value)
 
 
-# Create settings instance
+# 创建设置实例
 settings = Settings()
